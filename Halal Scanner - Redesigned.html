@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f6f3e9">
+<title>Halal Scanner</title>
+<style>
+/* ================= Tokens ================= */
+:root{
+  color-scheme:light;
+  --paper:#f6f3e9;--ink:#173b30;--muted:#465f51;--line:#d4dcd2;--card:#fffef9;
+  --green:#194b3a;--green-2:#22634d;--focus:#007157;
+  --red:#c0221b;--red-ink:#8f1d17;--red-bg:#fbe7e2;
+  --amber:#b06a00;--amber-ink:#6b4100;--amber-bg:#fdf1da;--amber-line:#e9c98d;
+  --ok:#1f7a4f;--ok-ink:#145a39;--ok-bg:#e3f4ea;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+h1,h2,p{margin:0}
+a{color:#145b47}
+[hidden]{display:none!important}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+main{max-width:30rem;margin:0 auto;padding:0 16px 40px}
+
+/* ================= Home ================= */
+.home-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-top:14px;position:relative;z-index:8}
+.home-head h1{font-size:clamp(2rem,9vw,2.6rem);letter-spacing:-.055em;line-height:1.02;font-weight:780}
+.home-head h1 span{display:inline-block;animation:titleIn 300ms var(--ease) both}
+.home-head p{color:var(--muted);margin-top:4px}
+.motion-toggle{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;min-width:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:.85rem;font-weight:650;cursor:pointer}
+.motion-toggle svg{width:16px;height:16px}
+.motion-toggle .play,.motion-toggle[aria-pressed=true] .pause{display:none}
+.motion-toggle[aria-pressed=true] .play{display:block}
+
+/* decorative 3D stage */
+.stage{position:relative;z-index:1;height:clamp(150px,28vh,250px);margin:2px -16px 0;overflow:hidden;pointer-events:none;perspective:820px;perspective-origin:50% 30%;contain:layout paint;
+  background:radial-gradient(120% 70% at 50% 8%,rgba(255,255,255,.95),rgba(255,255,255,0) 60%),var(--paper)}
+.stage::after{content:"";position:absolute;inset:auto 0 0;height:40%;background:linear-gradient(rgba(246,243,233,0),var(--paper));z-index:5}
+.rig{position:absolute;left:50%;top:50%;width:0;height:0;transform:rotateX(-18deg) rotateY(-14deg) scale(.82);animation:sway 20s ease-in-out infinite}
+.rig,.rig *{transform-style:preserve-3d}
+.rig .f,.rig .f *,.rig .bk,.rig .panel,.rig .panel *,.rig .floor *{transform-style:flat}
+.floor{position:absolute;width:720px;height:520px;left:-360px;top:-260px;transform:translateY(78px) rotateX(90deg);overflow:hidden;-webkit-mask:radial-gradient(closest-side,#000 30%,transparent 100%);mask:radial-gradient(closest-side,#000 30%,transparent 100%)}
+.floor i{position:absolute;inset:0 -240px;opacity:.16;animation:project 20s linear infinite;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='10'%3E%3Cg fill='%23194b3a'%3E%3Crect x='0' width='3' height='10'/%3E%3Crect x='6' width='1' height='10'/%3E%3Crect x='10' width='5' height='10'/%3E%3Crect x='18' width='2' height='10'/%3E%3Crect x='23' width='1' height='10'/%3E%3Crect x='27' width='4' height='10'/%3E%3Crect x='34' width='2' height='10'/%3E%3Crect x='40' width='1' height='10'/%3E%3Crect x='44' width='3' height='10'/%3E%3Crect x='51' width='6' height='10'/%3E%3Crect x='60' width='1' height='10'/%3E%3Crect x='64' width='2' height='10'/%3E%3Crect x='70' width='4' height='10'/%3E%3Crect x='78' width='1' height='10'/%3E%3Crect x='82' width='3' height='10'/%3E%3Crect x='89' width='1' height='10'/%3E%3Crect x='93' width='5' height='10'/%3E%3Crect x='101' width='2' height='10'/%3E%3Crect x='107' width='1' height='10'/%3E%3Crect x='111' width='4' height='10'/%3E%3C/g%3E%3C/svg%3E") 0 0/240px 100% repeat-x}
+.ring-tilt{position:absolute;transform:rotateX(70deg)}
+.ring{position:absolute;width:250px;height:250px;left:-125px;top:-125px;border-radius:50%;animation:spin 20s linear infinite;
+  background:conic-gradient(from 0deg,rgba(25,75,58,.18),rgba(25,75,58,.55) 14%,#fff 18%,rgba(25,75,58,.55) 22%,rgba(25,75,58,.2) 40%,rgba(25,75,58,.12) 70%,rgba(25,75,58,.4) 92%,rgba(25,75,58,.18));
+  -webkit-mask:radial-gradient(closest-side,transparent 82%,#000 84%,#000 93%,transparent 95%);mask:radial-gradient(closest-side,transparent 82%,#000 84%,#000 93%,transparent 95%)}
+.ring.inner{width:206px;height:206px;left:-103px;top:-103px;opacity:.55;animation-direction:reverse;background:repeating-conic-gradient(rgba(25,75,58,.55) 0 1.2deg,transparent 1.2deg 6deg);
+  -webkit-mask:radial-gradient(closest-side,transparent 90%,#000 91%,#000 97%,transparent 98%);mask:radial-gradient(closest-side,transparent 90%,#000 91%,#000 97%,transparent 98%)}
+.orbit{position:absolute;transform:rotateY(35deg);animation:orbit 20s linear infinite}
+.arm{position:absolute;transform:translateX(92px)}
+.plate{position:absolute;width:124px;height:82px;left:-62px;top:-58px;transform:rotateY(-35deg) rotateX(6deg)}
+.plate .f,.plate .bk,.plate .sd{position:absolute;border-radius:9px;backface-visibility:hidden}
+.plate .f{inset:0;transform:translateZ(5px);overflow:hidden;background:linear-gradient(115deg,rgba(255,255,255,.95) 0 8%,rgba(255,255,255,.15) 22%,rgba(255,255,255,0) 60%,rgba(255,255,255,.5) 100%),linear-gradient(160deg,rgba(225,245,236,.78),rgba(196,226,212,.58));box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.95),inset 0 0 0 2.5px rgba(25,75,58,.28)}
+.plate .f svg{position:absolute;left:14px;top:13px;width:calc(100% - 28px);height:52px}
+.plate .bk{inset:0;transform:rotateY(180deg) translateZ(5px);background:linear-gradient(200deg,rgba(25,75,58,.35),rgba(25,75,58,.15));box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7)}
+.plate .sd{width:10px;height:82px;left:-5px;top:0;transform:rotateY(-90deg);border-radius:3px;background:linear-gradient(#5f8f7c,#2c5d4a)}
+.plate .sd.r{left:auto;right:-5px;transform:rotateY(90deg)}
+.shadow{position:absolute;width:150px;height:70px;left:-75px;top:-35px;transform:translateY(78px) rotateX(90deg);border-radius:50%;background:radial-gradient(closest-side,rgba(23,59,48,.34),rgba(23,59,48,.12) 55%,transparent)}
+.label-rig{position:absolute;transform:translate3d(-118px,-18px,-120px) rotateY(28deg) rotateX(-4deg);animation:labelDrift 20s ease-in-out infinite}
+.panel{position:absolute;width:62px;height:96px;top:-48px;border-radius:4px;background:linear-gradient(180deg,#fffdf6,#f1ead6);box-shadow:inset 0 0 0 1px rgba(23,59,48,.14)}
+.panel::before{content:"";position:absolute;inset:12px 9px;background:repeating-linear-gradient(rgba(23,59,48,.28) 0 2px,transparent 2px 7px)}
+.panel.mid{left:-31px}
+.fold-l,.fold-r{position:absolute;transform-origin:0 50%}
+.fold-l{left:-31px;transform:rotateY(-34deg);animation:foldL 10s ease-in-out infinite}
+.fold-r{left:31px;transform:rotateY(38deg);animation:foldR 10s ease-in-out infinite}
+.fold-l .panel{left:-62px;background:linear-gradient(180deg,#f7f1df,#e7dfc6)}
+.fold-r .panel{left:0}
+
+/* big actions */
+.bigkeys{position:relative;z-index:6;display:grid;gap:12px;margin-top:-34px;animation:fadeUp 300ms 80ms var(--ease) both}
+.bigkey{position:relative;display:flex;align-items:center;gap:16px;min-height:96px;padding:16px 18px;border-radius:22px;border:1px solid transparent;text-align:left;font-weight:750;font-size:1.25rem;line-height:1.15;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform 120ms var(--ease),box-shadow 120ms var(--ease)}
+.bigkey svg{width:46px;height:46px;flex:none;transition:transform 140ms var(--ease)}
+.bigkey>span{min-width:0;overflow-wrap:break-word;hyphens:auto}
+.bigkey small{display:block;font-weight:600;font-size:.88rem;opacity:.85;margin-top:3px}
+.bigkey::after{content:"";position:absolute;inset:-4px;border-radius:26px;border:2px solid rgba(0,113,87,.5);opacity:0;pointer-events:none}
+.bigkey:active{transform:translateY(2px) scale(.99)}
+.bigkey:active::after{animation:lens 260ms var(--ease) forwards}
+.bigkey:active svg{transform:scale(1.06)}
+#scan{background:linear-gradient(160deg,var(--green-2),var(--green));color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 12px 24px -14px rgba(23,59,48,.8)}
+#read{background:#fff;border-color:#9fbcae;box-shadow:0 12px 24px -16px rgba(23,59,48,.6)}
+@media (hover:hover) and (pointer:fine){.bigkey:hover{box-shadow:0 16px 28px -14px rgba(23,59,48,.65)}}
+.typeit{display:flex;align-items:center;justify-content:center;gap:6px;margin:12px auto 0;min-height:44px;padding:0 14px;border:0;background:none;color:#145b47;text-decoration:underline;text-underline-offset:3px;font-weight:650;cursor:pointer}
+.typeit svg{width:16px;height:16px;transition:transform 180ms var(--ease)}
+.typeit[aria-expanded=true] svg{transform:rotate(180deg)}
+.manual{margin-top:6px;padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--line);animation:fadeUp 180ms var(--ease) both}
+.manual h2{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.manual h2+*{margin-top:8px}
+.manual .grp+.grp{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+label{display:block;font-weight:650;font-size:.95rem}
+input:not([type=file]),textarea{display:block;width:100%;margin-top:6px;min-height:48px;padding:.65rem .75rem;border-radius:12px;border:1px solid #85978b;background:#fff;color:var(--ink)}
+textarea{min-height:6.5rem;resize:vertical;line-height:1.45}
+.btn{flex:1 1 auto;min-height:48px;padding:6px 14px;border-radius:12px;border:1px solid var(--line);background:#f0f5ed;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center;line-height:1.2;color:var(--ink);touch-action:manipulation;transition:transform 120ms}
+.btn:active{transform:translateY(1px)}
+.btn svg{width:18px;height:18px;flex:none}
+.btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.err{margin-top:8px;color:var(--red-ink);font-weight:600;font-size:.92rem}
+.note{margin-top:18px;color:var(--muted);font-size:.84rem;text-align:center}
+
+/* ================= Result ================= */
+.result{padding-top:14px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.back{min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:650;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.back svg{width:16px;height:16px}
+.src{font-size:.84rem;color:var(--muted);text-align:right;overflow-wrap:anywhere}
+.shot{position:relative;margin-top:12px;border-radius:22px;overflow:hidden;aspect-ratio:4/5;background:#cfc6b4;box-shadow:0 18px 36px -24px rgba(23,59,48,.7);color:var(--red)}
+.shot img,.shot canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.shot::after{content:"";position:absolute;inset:0;background:rgba(20,30,25,.12);opacity:0;transition:opacity 200ms}
+.shot.stamped::after{opacity:1}
+.shot.press img,.shot.press canvas{animation:press 340ms var(--ease)}
+.scanline{position:absolute;inset:0;z-index:3;opacity:0;transition:opacity 200ms;pointer-events:none;background:rgba(246,243,233,.18)}
+.scanline::before{content:"";position:absolute;left:0;right:0;height:22%;top:-22%;background:linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.55) 60%,rgba(0,140,100,.7) 62%,rgba(255,255,255,0) 64%);animation:sweepY 1.6s var(--ease) infinite}
+.scanline::after{content:"";position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.85),0 0 0 1px rgba(25,75,58,.35);animation:bull 1.4s ease-in-out infinite}
+.shot.reading .scanline{opacity:1}
+.stamp{position:absolute;left:50%;top:44%;z-index:4;width:min(84%,330px);transform:translate(-50%,-50%) rotate(-10deg);color:var(--red);
+  border:6px solid currentColor;border-radius:18px;padding:12px 14px 13px;text-align:center;background:rgba(255,253,248,.86);
+  box-shadow:inset 0 0 0 3px rgba(255,253,248,.86),inset 0 0 0 5px currentColor;filter:url(#grunge);opacity:0;pointer-events:none}
+.stamp:empty{display:none}
+.stamp .ico{width:54px;height:54px;margin:0 auto 4px;display:block}
+.stamp .big{display:block;font-weight:900;letter-spacing:.04em;font-size:clamp(1.5rem,8vw,2.05rem);line-height:1.02;text-transform:uppercase;overflow-wrap:anywhere}
+.stamp .small{display:block;margin-top:7px;font-weight:800;letter-spacing:.07em;font-size:clamp(.7rem,3.4vw,.86rem);text-transform:uppercase;line-height:1.15;overflow-wrap:anywhere}
+.stamp.doubt{color:var(--amber)}.stamp.good{color:var(--ok)}
+.stamp.go{animation:stampIn 360ms cubic-bezier(.25,1.3,.5,1) forwards}
+.stamp path.draw{stroke-dasharray:60;stroke-dashoffset:60}
+.stamp.go path.draw{animation:draw 260ms 300ms var(--ease) forwards}
+.stamp.go path.draw.d2{animation-delay:420ms}
+.stamp.go .pop{animation:pop 260ms 300ms var(--ease) both}
+.inkring{position:absolute;left:50%;top:44%;z-index:3;width:min(84%,330px);aspect-ratio:2.2;border-radius:30px;transform:translate(-50%,-50%) rotate(-10deg);border:3px solid currentColor;opacity:0;pointer-events:none}
+.inkring.go{animation:ring 420ms 230ms var(--ease) forwards}
+
+.verdict{margin-top:14px;padding:16px;border-radius:20px;background:var(--card);border:1px solid var(--line);border-left:7px solid #8aa596}
+.verdict.bad{border-left-color:var(--red)}.verdict.doubt{border-left-color:var(--amber)}.verdict.good{border-left-color:var(--ok)}
+.v-title{font-size:1.35rem;line-height:1.18;font-weight:800;letter-spacing:-.01em;outline:none}
+.verdict.bad .v-title{color:var(--red-ink)}.verdict.doubt .v-title{color:var(--amber-ink)}.verdict.good .v-title{color:var(--ok-ink)}
+.v-reason{margin-top:8px;overflow-wrap:anywhere}
+.v-reason:empty,.v-next:empty{display:none}
+.v-next{margin-top:6px;color:var(--muted);overflow-wrap:anywhere}
+.v-next b{color:var(--ink)}
+.v-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.v-actions:empty{display:none}
+.logo{margin-top:14px;padding:12px;border-radius:14px;background:var(--amber-bg);border:1px solid var(--amber-line)}
+.logo p{font-weight:700}
+.logo .row .btn{background:#fff}
+.logo-no{margin-top:10px;color:var(--amber-ink);font-weight:600}
+.found{margin-top:14px;padding:14px 16px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.found h2{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.found .text{margin-top:6px;font-size:.95rem;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
+mark{border-radius:4px;padding:0 3px;font-weight:700;color:inherit}
+mark.bad{background:var(--red-bg);color:var(--red-ink);box-shadow:inset 0 -2px 0 var(--red)}
+mark.doubt{background:var(--amber-bg);color:var(--amber-ink);box-shadow:inset 0 -2px 0 var(--amber)}
+mark.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.notes{margin:8px 0 0;padding:0 0 0 18px;color:var(--muted);font-size:.88rem}
+.notes:empty{display:none}
+details.fix{margin-top:12px;border-top:1px dashed var(--line);padding-top:4px}
+details.fix summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;font-weight:700;cursor:pointer}
+details.fix summary::-webkit-details-marker{display:none}
+details.fix summary svg{width:18px;height:18px;flex:none;transition:transform 180ms var(--ease)}
+details.fix[open] summary svg{transform:rotate(180deg)}
+details.fix[open] form{animation:fadeUp 180ms var(--ease) both}
+.again{margin-top:16px;width:100%;min-height:58px;font-size:1.08rem;border-radius:16px}
+.screen-in{animation:fadeUp 220ms var(--ease) both}
+.stamp.doubt .big{font-size:clamp(1.15rem,6vw,1.6rem)}
+.offline{position:sticky;top:0;z-index:40;background:#5d3d08;color:#fff;padding:10px 16px;font-weight:600;font-size:.92rem;text-align:center}
+.corrected{display:inline-flex;margin-top:10px;padding:2px 10px;border-radius:999px;background:#e8eef9;color:#23406f;font-weight:700;font-size:.82rem}
+.wrongbox{margin-top:8px}
+.linkbtn{min-height:44px;padding:0 4px;border:0;background:none;color:#145b47;text-decoration:underline;text-underline-offset:3px;font-weight:700;cursor:pointer}
+.wrong-panel{margin-top:4px;padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--line);animation:fadeUp 180ms var(--ease) both}
+.wp-h{font-weight:800}
+.choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.choices .btn{justify-content:flex-start;text-align:left}
+#c-phrase,#c-verdict{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:#fff;font-weight:700;cursor:pointer;color:var(--ink)}
+.chip.bad{border-color:var(--red);color:var(--red-ink)}.chip.doubt{border-color:var(--amber);color:var(--amber-ink)}
+.hint{color:var(--muted);font-size:.88rem;margin-top:6px}
+.vchoices{display:grid;gap:8px;margin-top:8px}
+.vchoices .btn{background:#fff;border-width:2px}
+.vchoices .btn[aria-pressed=true]{outline:3px solid var(--focus);outline-offset:2px}
+.v-good{border-color:var(--ok);color:var(--ok-ink)}.v-doubt{border-color:var(--amber);color:var(--amber-ink)}.v-bad{border-color:var(--red);color:var(--red-ink)}
+.c-msg{margin-top:10px;font-weight:600;color:var(--ok-ink)}.c-msg:empty{display:none}
+.syncbox{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+.syncbox summary{list-style:none;display:flex;align-items:center;gap:6px;min-height:48px;padding:0 14px;font-weight:700;cursor:pointer}
+.syncbox summary::-webkit-details-marker{display:none}
+.syncbox summary svg{width:18px;height:18px;flex:none;transition:transform 180ms var(--ease)}
+.syncbox[open] summary svg{transform:rotate(180deg)}
+#sync-state{font-weight:500;color:var(--muted);flex:1}
+.sb{padding:0 14px 14px}
+.wrong-panel label,.sb label{margin-top:10px}
+
+/* ================= Keyframes ================= */
+@keyframes titleIn{from{clip-path:inset(0 0 100% 0);transform:translateY(.35em)}to{clip-path:inset(0 0 0 0);transform:none}}
+@keyframes fadeUp{from{opacity:.6;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes sway{0%,100%{transform:rotateX(-18deg) rotateY(-14deg) scale(.82)}50%{transform:rotateX(-14deg) rotateY(10deg) scale(.82)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes orbit{from{transform:rotateY(35deg)}to{transform:rotateY(395deg)}}
+@keyframes project{from{transform:translateX(0)}to{transform:translateX(240px)}}
+@keyframes labelDrift{0%,100%{transform:translate3d(-118px,-18px,-120px) rotateY(28deg) rotateX(-4deg)}50%{transform:translate3d(-108px,-28px,-100px) rotateY(16deg) rotateX(-8deg)}}
+@keyframes foldL{0%,100%{transform:rotateY(-34deg)}50%{transform:rotateY(-14deg)}}
+@keyframes foldR{0%,100%{transform:rotateY(38deg)}50%{transform:rotateY(16deg)}}
+@keyframes lens{0%{opacity:.9;transform:scale(.97)}100%{opacity:0;transform:scale(1.02)}}
+@keyframes sweepY{from{transform:translateY(0)}to{transform:translateY(560%)}}
+@keyframes bull{0%,100%{transform:scale(.92);opacity:.6}50%{transform:scale(1.04);opacity:1}}
+@keyframes stampIn{0%{opacity:0;transform:translate(-50%,-50%) rotate(-22deg) scale(1.9)}62%{opacity:1;transform:translate(-50%,-50%) rotate(-9deg) scale(.95)}100%{opacity:.95;transform:translate(-50%,-50%) rotate(-10deg) scale(1)}}
+@keyframes ring{0%{opacity:.5;transform:translate(-50%,-50%) rotate(-10deg) scale(.96)}100%{opacity:0;transform:translate(-50%,-50%) rotate(-10deg) scale(1.14)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+@keyframes press{40%{transform:scale(.985)}100%{transform:none}}
+
+/* paused / hidden / reduced motion */
+body.paused .stage *,body.hidden-tab .stage *{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:1ms!important;scroll-behavior:auto!important}
+  .stage *{animation:none!important}
+  .scanline::before{top:40%}
+  .stamp.go{animation:none!important;opacity:.95}
+  .stamp.go path.draw{animation:none!important;stroke-dashoffset:0}
+  .inkring.go{animation:none!important}
+}
+@media (max-width:340px){
+  .bigkey{gap:12px;padding:14px;font-size:1.12rem}
+  .bigkey svg{width:38px;height:38px}
+  .pair{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="grunge" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -3 2.75" result="m"/>
+    <feComposite in="SourceGraphic" in2="m" operator="in" result="ink"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="9" result="w"/>
+    <feDisplacementMap in="ink" in2="w" scale="2.5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<div class="offline" id="offline" role="status" hidden>You’re offline. Barcode lookups and ingredient reading need internet. Corrections are kept and uploaded later.</div>
+<main>
+<!-- ================= Home ================= -->
+<section id="home" aria-labelledby="title">
+  <div class="home-head">
+    <div><h1 id="title"><span>Halal Scanner</span></h1><p>Snap the pack. Get a clear answer.</p></div>
+    <button type="button" class="motion-toggle" id="motion" aria-pressed="false">
+      <svg class="pause" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2.5" width="3.2" height="11" rx="1" fill="currentColor"/><rect x="9.8" y="2.5" width="3.2" height="11" rx="1" fill="currentColor"/></svg>
+      <svg class="play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>
+      <span>Motion</span><span class="sr" id="motion-state"> on, pause background animation</span>
+    </button>
+  </div>
+  <div class="stage" id="stage" aria-hidden="true">
+    <div class="rig">
+      <div class="floor"><i></i></div>
+      <div class="label-rig">
+        <div class="panel mid"></div>
+        <div class="fold-l"><div class="panel"></div></div>
+        <div class="fold-r"><div class="panel"></div></div>
+      </div>
+      <div class="ring-tilt"><div class="ring"></div><div class="ring inner"></div></div>
+      <div class="orbit"><div class="arm">
+        <div class="shadow"></div>
+        <div class="plate">
+          <div class="bk"></div><div class="sd"></div><div class="sd r"></div>
+          <div class="f"><svg viewBox="0 0 96 48" preserveAspectRatio="none"><g fill="#173b30" opacity=".82"><rect x="0" width="2" height="48"/><rect x="4" width="1" height="48"/><rect x="7" width="3" height="44"/><rect x="12" width="1" height="44"/><rect x="15" width="2" height="44"/><rect x="19" width="4" height="44"/><rect x="25" width="1" height="44"/><rect x="28" width="2" height="44"/><rect x="32" width="1" height="44"/><rect x="35" width="3" height="44"/><rect x="40" width="1" height="44"/><rect x="45" width="1" height="48"/><rect x="48" width="1" height="48"/><rect x="51" width="3" height="44"/><rect x="56" width="1" height="44"/><rect x="59" width="2" height="44"/><rect x="63" width="4" height="44"/><rect x="69" width="1" height="44"/><rect x="72" width="2" height="44"/><rect x="76" width="1" height="44"/><rect x="79" width="3" height="44"/><rect x="84" width="2" height="44"/><rect x="89" width="1" height="44"/><rect x="92" width="1" height="48"/><rect x="94" width="2" height="48"/></g></svg></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+  <div class="bigkeys">
+    <button class="bigkey" id="scan" type="button">
+      <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 10V5a2 2 0 0 1 2-2h5M24 3h5a2 2 0 0 1 2 2v5M31 24v5a2 2 0 0 1-2 2h-5M10 31H5a2 2 0 0 1-2-2v-5"/><path d="M10 10v14M13.5 10v14M18 10v14M21 10v14M24.5 10v14" stroke-width="1.8"/></svg>
+      <span>Photograph barcode<small>Finds the product and its ingredients</small></span>
+    </button>
+    <button class="bigkey" id="read" type="button">
+      <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h14l6 6v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M21 3v6h6"/><path d="M10 14h10M10 19h7"/><path d="m17 25 3 3 6-7" stroke="#22634d" stroke-width="2.4"/></svg>
+      <span>Photograph ingredients<small>Most accurate · reads the label</small></span>
+    </button>
+  </div>
+  <input hidden id="camera" type="file" accept="image/*" capture="environment">
+  <input hidden id="gallery" type="file" accept="image/*">
+  <button class="typeit" id="typeit" type="button" aria-expanded="false" aria-controls="manual">Type it or use a saved photo<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m4.5 7 4.5 4.5L13.5 7"/></svg></button>
+  <div class="manual" id="manual" hidden>
+    <div class="grp">
+      <h2>Use a saved photo</h2>
+      <div class="pair">
+        <button class="btn" id="choose-barcode" type="button">Barcode photo</button>
+        <button class="btn" id="choose-label" type="button">Ingredients photo</button>
+      </div>
+    </div>
+    <form class="grp" id="lookup" novalidate>
+      <label for="barcode">Barcode number</label>
+      <input id="barcode" inputmode="numeric" autocomplete="off" maxlength="18" aria-describedby="barcode-err">
+      <p class="err" id="barcode-err" role="alert" hidden></p>
+      <div class="row"><button class="btn primary">Look up barcode</button></div>
+    </form>
+    <form class="grp" id="typed" novalidate>
+      <label for="typed-text">Ingredients (type or paste the whole list)</label>
+      <textarea id="typed-text" spellcheck="false" aria-describedby="typed-err"></textarea>
+      <p class="err" id="typed-err" role="alert" hidden></p>
+      <div class="row"><button class="btn primary">Check ingredients</button></div>
+    </form>
+  </div>
+  <details class="syncbox" id="syncbox">
+    <summary>Corrections &amp; GitHub<span id="sync-state"></span><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m4.5 7 4.5 4.5L13.5 7"/></svg></summary>
+    <div class="sb">
+      <p id="sync-status" role="status"></p>
+      <form id="gh-form" novalidate>
+        <label for="gh-owner">GitHub account name</label><input id="gh-owner" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="gh-repo">Repository</label><input id="gh-repo" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="gh-token">Access key</label><input id="gh-token" type="password" autocomplete="off">
+        <p class="hint">Use a fine-grained key limited to this one repository (Contents: read and write). It is stored only in this phone’s browser.</p>
+        <div class="row"><button class="btn primary">Connect</button></div>
+      </form>
+      <div class="row"><button type="button" class="btn" id="sync-now" hidden>Upload now</button><button type="button" class="btn" id="gh-off" hidden>Disconnect</button></div>
+    </div>
+  </details>
+  <p class="note">Photos stay on your phone. Only a barcode number is sent to Open Food Facts to find the product. Ingredient reading downloads text-recognition files on first use.</p>
+</section>
+
+<!-- ================= Result ================= -->
+<section id="result" class="result" aria-labelledby="vt" hidden>
+  <div class="topbar">
+    <button class="back" id="back" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>Home</button>
+    <p class="src" id="src"></p>
+  </div>
+  <div class="shot" id="shot">
+    <img id="photo" alt="" hidden>
+    <canvas id="card" width="800" height="1000" aria-hidden="true" hidden></canvas>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="inkring" id="ring" aria-hidden="true"></div>
+    <div class="stamp" id="stamp" aria-hidden="true"></div>
+  </div>
+  <div class="verdict" id="verdict" aria-live="polite">
+    <h2 class="v-title" id="vt" tabindex="-1"></h2>
+    <p class="v-reason" id="vr"></p>
+    <p class="v-next" id="vn"></p>
+    <div class="v-actions" id="v-actions"></div>
+    <div class="logo" id="logo" hidden>
+      <p>Is there a halal logo on the pack?</p>
+      <div class="row"><button class="btn" type="button" id="logo-yes">Yes, there is</button><button class="btn" type="button" id="logo-no">No / not sure</button></div>
+      <p class="logo-no" id="logo-no-msg" hidden>Without a halal logo, it’s safest to skip this product.</p>
+    </div>
+    <p class="corrected" id="corrected" hidden>✎ Corrected by you</p>
+  </div>
+  <div class="wrongbox" id="wrongbox" hidden>
+    <button type="button" class="linkbtn" id="wrong" aria-expanded="false" aria-controls="wrong-panel">This is wrong?</button>
+    <div class="wrong-panel" id="wrong-panel" hidden>
+      <p class="wp-h">What’s wrong with this result?</p>
+      <div class="choices">
+        <button type="button" class="btn" data-c="logo">There’s a halal logo on the pack</button>
+        <button type="button" class="btn" data-c="phrase">A word was misread or is harmless here</button>
+        <button type="button" class="btn" data-c="verdict">The stamp should be different</button>
+      </div>
+      <div id="c-phrase" hidden>
+        <p id="c-none" class="hint">Nothing was flagged on this result, so there’s no word to correct. Use “The stamp should be different” instead.</p>
+        <form id="c-phrase-form" novalidate>
+          <p class="hint">Tap the flagged word:</p>
+          <div class="chips" id="c-words"></div>
+          <label for="c-phrase-text">Phrase to treat as harmless</label>
+          <input id="c-phrase-text" autocomplete="off">
+          <p class="hint">Keep the words around it, e.g. “virgin olive oil”. A single word on its own isn’t accepted.</p>
+          <label for="c-phrase-why">Why? (optional)</label>
+          <input id="c-phrase-why" autocomplete="off">
+          <div class="row"><button class="btn primary">Save as harmless</button></div>
+        </form>
+      </div>
+      <div id="c-verdict" hidden>
+        <form id="c-verdict-form" novalidate>
+          <p class="hint">What should the stamp say for this product?</p>
+          <div class="vchoices">
+            <button type="button" class="btn v-good" data-v="good" aria-pressed="false">Safe</button>
+            <button type="button" class="btn v-doubt" data-v="doubt" aria-pressed="false">Proceed with caution</button>
+            <button type="button" class="btn v-bad" data-v="bad" aria-pressed="false">Not safe</button>
+          </div>
+          <label for="c-why">Why? (helps fix the rules)</label>
+          <textarea id="c-why"></textarea>
+          <div class="row"><button class="btn primary">Save correction</button></div>
+        </form>
+      </div>
+      <p class="c-msg" id="c-msg" role="status"></p>
+    </div>
+  </div>
+  <div class="found" id="found" hidden>
+    <h2 id="found-h">What we read</h2>
+    <p class="text" id="found-text"></p>
+    <ul class="notes" id="notes"></ul>
+    <details class="fix" id="fix">
+      <summary>Text wrong? Fix it and check again<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m4.5 7 4.5 4.5L13.5 7"/></svg></summary>
+      <form id="refix" novalidate>
+        <label for="fix-text" class="sr">Ingredient text</label>
+        <textarea id="fix-text" spellcheck="false"></textarea>
+        <div class="row"><button class="btn primary">Check again</button></div>
+      </form>
+    </details>
+  </div>
+  <button class="btn primary again" id="again" type="button"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6V4a1 1 0 0 1 1-1h2M12 3h2a1 1 0 0 1 1 1v2M15 12v2a1 1 0 0 1-1 1h-2M6 15H4a1 1 0 0 1-1-1v-2"/></svg>Scan another</button>
+</section>
+</main>
+
+<!-- ================= Ingredient rules (pure, no DOM) ================= -->
+<script id="rules">
+/* RULES START */
+const Rules = (() => {
+  'use strict';
+  const ALC = 'wines?|beers?|rum|vodka|whisk(?:e)?y|brandy|sake|liqueurs?|liquor|cognac|gin|champagne|shaoxing|hua ?tiao|huadiao';
+  const ORIGIN_LEAD = '(?:made in|product of|produced in|manufactured in|country of origin:?|origin:|buatan|dibuat di|diperbuat di|keluaran)';
+  // Phrases that look risky but are not: masked, not highlighted.
+  const HARMLESS = [
+    /\b(?:alcohol|pork|lard)[- ]free\b/gi, /\bnon[- ]alcoholic\b/gi, /\b(?:wine|beer|rice|malt|cider) vinegar\b/gi,
+    /\bsugar alcohols?\b/gi, /\broot beer\b/gi, /\b(?:vegetable|palm|plant|coconut) (?:shortening|fats?|oils?)\b/gi,
+    /\b(?:microbial|vegetable|plant|non-animal) rennet\b/gi
+  ];
+  // Plant or fish ingredients: masked and highlighted green.
+  const SAFE = [
+    [/\bfish gelatine?\b|\bmarine gelatine?\b|\bgelatine?\s*\(\s*(?:from\s+)?fish[^)]*\)/gi, 'Fish gelatin is fine.'],
+    [/\bagar(?:[- ]agar)?\b|\be[- ]?406\b/gi, 'Agar-agar is plant-based.'],
+    [/\bpectins?\b|\be[- ]?440\b/gi, 'Pectin is plant-based.'],
+    [/\bcarrageenan\b|\be[- ]?407a?\b/gi, 'Carrageenan is from seaweed.'],
+    [/\bxanthan(?: gum)?\b|\be[- ]?415\b/gi, 'Xanthan gum is plant-based.'],
+    [/\bguar(?: gum)?\b|\be[- ]?412\b/gi, 'Guar gum is plant-based.'],
+    [/\b(?:soy|soya|sunflower|rapeseed|canola) lecithins?\b/gi, 'Soy or sunflower lecithin is plant-based.'],
+    [/\b(?:vegetable|plant|palm|soy|coconut)[- ](?:glycerine?|glycerol)\b/gi, 'Vegetable glycerin is plant-based.']
+  ];
+  // Checked before the red list so they are not mistaken for drinks.
+  const PRE_DOUBT = [
+    [new RegExp('\\b(?:' + ALC + ')\\s*(?:flavou?r(?:ings?|s)?|essence|aroma|extract)\\b', 'gi'), 'alcohol-flavour'],
+    [/\bginger beer\b/gi, 'alcohol']
+  ];
+  const RED = [
+    [/\bgelatine?\s*\(\s*(?:from\s+)?(?:pork|porcine|pigs?|swine|babi)[^)]*\)/gi, 'pork'],
+    [/\b(?:pork|porcine|pigs?|swine)(?:[- ](?:derived|based))?(?:\s+(?:gelatine?|fat|lard|extract|meat|skin|rind|collagen|broth|stock|bone))?\b/gi, 'pork'],
+    [/\b(?:daging|lemak|minyak|gelatine?|tulang) babi\b|\bbabi\b|\bkhinzir\b/gi, 'pork'],
+    [/\blard\b|\bbacon\b|\bham\b|\bpancetta\b|\bprosciutto\b/gi, 'pork'],
+    [new RegExp('\\b(?:cooking|rice|shaoxing|hua ?tiao|huadiao)\\s+wine\\b|\\b(?:' + ALC + ')\\b', 'gi'), 'alcohol']
+  ];
+  const DOUBT = [
+    [/\b(?:halal\s+)?(?:beef|bovine|cow|cattle)\s+gelatine?\b|\bgelatine?\s*\(\s*(?:from\s+)?(?:beef|bovine|cow|cattle)[^)]*\)/gi, 'gelatin-bovine'],
+    [/\bgelatine?\b|\be[- ]?441\b/gi, 'gelatin'],
+    [/\b(?:ethanol|ethyl alcohol|alcohol|alkohol|etanol|mirin)\b/gi, 'alcohol'],
+    [/\be[- ]?47[12][a-f]?\b|\bmono-?\s*(?:and|&)\s*di-?\s*glycerides?(?:\s+of\s+fatty\s+acids)?\b/gi, 'emulsifier'],
+    [/\bl[- ]?cysteine\b|\be[- ]?920\b/gi, 'cysteine'],
+    [/\banimal (?:fats?|oils?|shortening)\b|\bshortening\b|\btallow\b|\bsuet\b|\bdripping\b/gi, 'fat'],
+    [/\brennet\b/gi, 'rennet'],
+    [/\bglycerine?\b|\bglycerol\b|\be[- ]?422\b/gi, 'glycerin'],
+    [/\b(?:meat|chicken|beef|mutton|lamb|veal|poultry|turkey|duck|goose|venison|daging|ayam|lembu|sapi|kambing)\b/gi, 'meat']
+  ];
+  const DOUBT_ORDER = ['gelatin', 'gelatin-bovine', 'alcohol-flavour', 'alcohol', 'emulsifier', 'cysteine', 'fat', 'rennet', 'glycerin', 'meat'];
+  const DOUBT_TEXT = {
+    'gelatin': t => ['Gelatin (source not stated). Commercial gelatin is often pork-derived.', 'Only buy if there’s a halal logo.'],
+    'gelatin-bovine': t => ['Beef gelatin. No pork, but halal slaughter isn’t confirmed.', 'Look for a halal logo.'],
+    'alcohol-flavour': t => ['“' + t + '” names an alcoholic drink as the flavour source.', 'Check for a halal logo or ask the manufacturer.'],
+    'alcohol': t => ['“' + t + '” may be an alcohol ingredient or a flavouring carrier.', 'Check for a halal logo or ask the manufacturer.'],
+    'emulsifier': t => ['“' + t + '” can be made from animal fat, including pork.', 'Look for a halal logo.'],
+    'cysteine': t => ['L-cysteine (E920) can come from pig bristles or feathers.', 'Look for a halal logo.'],
+    'fat': t => ['“' + t + '” is an animal fat whose source isn’t stated.', 'Look for a halal logo.'],
+    'rennet': t => ['Rennet can come from an animal that wasn’t slaughtered the halal way.', 'Look for a halal logo.'],
+    'glycerin': t => ['Glycerin with no plant source stated can be animal-derived.', 'Look for a halal logo.'],
+    'meat': t => ['“' + t + '”. Halal slaughter isn’t confirmed.', 'Only buy if there’s a halal logo.']
+  };
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+  // The short "where the uncertainty lies" line on the amber stamp.
+  const UNSURE = {
+    'gelatin': t => 'Gelatin – source not stated',
+    'gelatin-bovine': t => 'Beef gelatin – slaughter not confirmed',
+    'alcohol-flavour': t => cap(cut(t, 24)) + ' – alcohol source',
+    'alcohol': t => cap(cut(t, 24)) + ' – may contain alcohol',
+    'emulsifier': t => cap(cut(t, 24)) + ' – may be animal fat',
+    'cysteine': t => 'L-cysteine – may be animal-derived',
+    'fat': t => cap(cut(t, 24)) + ' – source not stated',
+    'rennet': t => 'Rennet – may be animal-derived',
+    'glycerin': t => 'Glycerin – source not stated',
+    'meat': t => cap(cut(t, 24)) + ' – slaughter not confirmed'
+  };
+  const GLOSS = {lard: 'pork fat', bacon: 'pork', ham: 'pork', pancetta: 'pork', prosciutto: 'pork', babi: 'pork', khinzir: 'pork'};
+  const HALAL_ORIGINS = /^(?:malaysia|indonesia|brunei|saudi arabia|saudi|united arab emirates|uae|qatar|kuwait|oman|bahrain|turkey|türkiye|pakistan|egypt|jordan)$/i;
+  const PORK_ORIGINS = /^(?:germany|france|italy|spain|netherlands|holland|belgium|united kingdom|uk|england|scotland|ireland|poland|denmark|austria|switzerland|sweden|norway|finland|portugal|czech republic|czechia|hungary|greece|europe|eu|usa|u\.s\.a\.|united states|america|canada|china|japan|korea|south korea|taiwan|hong kong|mongolia)$/i;
+
+  const clean = raw => String(raw || '').replace(/-\s*\n\s*/g, '').replace(/\s+/g, ' ').trim();
+  const mask = (s, a, b) => s.slice(0, a) + ' '.repeat(b - a) + s.slice(b);
+  const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // A user exception must be a phrase (two or more words), never a bare word.
+  const validException = p => typeof p === 'string' && clean(p).split(' ').length >= 2 && clean(p).length >= 5;
+
+  function analyse(raw, source, opts) {
+    const text = clean(raw);
+    const exceptions = ((opts && opts.exceptions) || []).filter(validException);
+    let scan = text;
+    const hits = [];
+    const notes = [];
+    const take = (re, fn) => {
+      re.lastIndex = 0;
+      let m;
+      while ((m = re.exec(scan))) {
+        if (!m[0].trim()) { re.lastIndex++; continue; }
+        const start = m.index, end = start + m[0].length;
+        fn(start, end, text.slice(start, end), m);
+        scan = mask(scan, start, end);
+        re.lastIndex = end;
+      }
+    };
+    // Country of origin: a note only, and masked so "Turkey" is not read as meat.
+    let origin = '';
+    take(new RegExp('\\b' + ORIGIN_LEAD + '\\s+(?:the\\s+)?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\'-]*(?: (?!and\\b)[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\'-]*){0,2})', 'gi'), (s, e, t, m) => {
+      if (!origin) origin = m[1].replace(/[.,;:]+$/, '');
+    });
+    // Phrases the user marked as harmless (from corrections).
+    const usedExceptions = new Set();
+    for (const p of exceptions) {
+      take(new RegExp('\\b' + clean(p).split(' ').map(escapeRe).join('\\s+') + '\\b', 'gi'), (s, e, t) => {
+        hits.push({start: s, end: e, tone: 'ok', term: t, user: true});
+        usedExceptions.add(clean(p));
+      });
+    }
+    for (const re of HARMLESS) take(re, () => {});
+    const safeNotes = new Set();
+    for (const [re, note] of SAFE) take(re, (s, e, t) => { hits.push({start: s, end: e, tone: 'ok', term: t}); safeNotes.add(note); });
+    for (const [re, cat] of PRE_DOUBT) take(re, (s, e, t) => hits.push({start: s, end: e, tone: 'doubt', cat, term: t}));
+    for (const [re, cat] of RED) take(re, (s, e, t) => hits.push({start: s, end: e, tone: 'bad', cat, term: t}));
+    for (const [re, cat] of DOUBT) take(re, (s, e, t) => hits.push({start: s, end: e, tone: 'doubt', cat, term: t}));
+    hits.sort((a, b) => a.start - b.start);
+
+    const red = hits.filter(h => h.tone === 'bad');
+    const doubt = hits.filter(h => h.tone === 'doubt');
+    const commas = (text.match(/[,;、]/g) || []).length;
+    const heading = /\b(?:ingredients?|ingredient list|bahan(?:-bahan)?|ramuan|komposisi|kandungan)\b/i.test(text);
+    const complete = text.length >= 12 && (heading || commas >= (source === 'off' ? 2 : 3));
+    const halalSeen = /\bhalal\b/i.test(text.replace(/\bnon[- ]?halal\b/gi, ''));
+
+    if (origin) {
+      let line = 'Made in ' + origin + '.';
+      if (doubt.some(h => h.cat === 'gelatin')) {
+        if (HALAL_ORIGINS.test(origin)) line += ' Gelatin from here is often halal beef or fish gelatin, but still check for a halal logo.';
+        else if (PORK_ORIGINS.test(origin)) line += ' Unlabelled gelatin from here is very often pork-derived.';
+      }
+      notes.push(line);
+    }
+    for (const p of usedExceptions) notes.push('You marked “' + p + '” as harmless.');
+    for (const n of safeNotes) notes.push(n);
+
+    const uniq = list => [...new Map(list.map(h => [h.term.toLowerCase(), h])).values()];
+    let r;
+    if (red.length) {
+      const terms = uniq(red);
+      const named = terms.map(h => {
+        const key = h.term.toLowerCase();
+        const gloss = h.cat === 'alcohol' ? 'an alcoholic drink' : GLOSS[key] || (/babi|khinzir/.test(key) && key !== 'babi' ? 'pork' : '');
+        return h.term + (gloss ? ' (' + gloss + ')' : '');
+      });
+      const list = named.length > 1 ? named.slice(0, -1).join(', ') + ' and ' + named[named.length - 1] : named[0];
+      r = {tone: 'bad', kind: 'red', stampBig: 'Not safe', stampSmall: 'Item prohibited – contains ' + cut(terms[0].term, 22),
+        title: 'Not safe — item prohibited', reason: 'The ingredients include ' + list + '.', next: 'Don’t buy this product.',
+        askLogo: true, redList: list, firstRed: terms[0].term};
+      if (doubt.length) notes.unshift('Also uncertain: ' + uniq(doubt).map(h => h.term).join(', ') + '.');
+    } else if (doubt.length) {
+      const first = DOUBT_ORDER.map(cat => doubt.find(h => h.cat === cat)).find(Boolean);
+      const [reason, next] = DOUBT_TEXT[first.cat](first.term);
+      const others = uniq(doubt).filter(h => h.term.toLowerCase() !== first.term.toLowerCase()).map(h => h.term);
+      const unsure = UNSURE[first.cat](first.term) + (others.length ? ' (+' + others.length + ' more)' : '');
+      r = {tone: 'doubt', kind: 'doubtful', stampBig: 'Proceed with caution', stampSmall: unsure,
+        title: 'Proceed with caution — ' + unsure, reason: reason + (others.length ? ' Also uncertain: ' + others.join(', ') + '.' : ''),
+        next, askLogo: complete};
+      if (!complete) r.next = next + ' Part of the list may also be missing, so retake the photo if you can.';
+    } else if (!complete) {
+      const partial = source === 'off' ? 'Ingredient list incomplete' : 'Couldn’t read the whole list';
+      r = {tone: 'doubt', kind: 'incomplete', stampBig: 'Proceed with caution', stampSmall: partial,
+        title: 'Proceed with caution — ' + partial.charAt(0).toLowerCase() + partial.slice(1),
+        reason: source === 'typed' ? 'This looks like only part of an ingredient list, so something could be missed.'
+          : source === 'off' ? 'Open Food Facts only has part of the ingredient list for this product, so something could be missed.'
+          : 'Part of the label may be cut off or blurry, so something could be missed.',
+        next: source === 'typed' ? 'Type the whole ingredient list, separated by commas.'
+          : source === 'off' ? 'Photograph the ingredients on the pack.'
+          : 'Retake the photo with the whole ingredient list in view.', askLogo: false};
+    } else {
+      r = {tone: 'good', kind: 'clear', stampBig: 'Safe', stampSmall: 'No haram ingredients found',
+        title: 'Safe — no haram ingredients found', reason: 'Nothing in this ingredient list is flagged as pork, alcohol or uncertain.',
+        next: 'This is not a halal certification. A halal logo gives extra certainty.', askLogo: false};
+    }
+    if (halalSeen && r.askLogo) notes.unshift('The label mentions “halal”. If the pack has a halal logo, tap “Yes, there is”.');
+    return Object.assign(r, {text, hits, notes, complete, halalSeen});
+  }
+
+  // The user confirmed a halal logo on the pack.
+  //  - red terms + logo  -> amber: a real conflict worth a second look
+  //  - uncertain terms on a fully read list + logo -> green
+  //  - anything else (partial or missing list) is unchanged
+  function withLogo(r) {
+    if (r.kind === 'red') {
+      return Object.assign({}, r, {tone: 'doubt', kind: 'logo-conflict', stampBig: 'Proceed with caution',
+        stampSmall: 'Halal logo, but lists ' + cut(r.firstRed, 18),
+        title: 'Proceed with caution — halal logo, but the label lists ' + r.firstRed,
+        reason: 'You confirmed a halal logo, but the ingredients include ' + r.redList + '.',
+        next: 'Check the logo’s certifier (e.g. MUIS or JAKIM) covers this exact product and variant before buying.', askLogo: false});
+    }
+    if (r.tone !== 'doubt' || r.kind !== 'doubtful' || !r.complete) return r;
+    return Object.assign({}, r, {tone: 'good', kind: 'logo', stampBig: 'Safe', stampSmall: 'Halal logo + no haram ingredients',
+      title: 'Safe — halal logo + no haram ingredients', reason: r.reason + ' You confirmed a halal logo on the pack.',
+      next: 'Make sure the logo is from a recognised certifier, such as MUIS or JAKIM.', askLogo: false});
+  }
+
+  // The user set the right stamp for this product.
+  function override(r, tone, reason, date) {
+    const when = date ? ' on ' + String(date).slice(0, 10) : '';
+    const base = {good: ['Safe', 'Corrected by you', 'Safe — corrected by you'],
+      doubt: ['Proceed with caution', 'Corrected by you', 'Proceed with caution — corrected by you'],
+      bad: ['Not safe', 'Item prohibited – corrected by you', 'Not safe — corrected by you']}[tone];
+    if (!base) return r;
+    return Object.assign({}, r, {tone, kind: 'override', stampBig: base[0], stampSmall: base[1], title: base[2],
+      reason: (reason ? reason : 'You corrected the result for this product') + (/[.!?]$/.test(reason || '') ? '' : '.'),
+      next: 'You corrected this' + when + '. The app had said: ' + r.title + '.', askLogo: false});
+  }
+
+  // Word-overlap similarity for recognising the same label in a new photo.
+  function similar(a, b) {
+    const words = s => new Set(clean(s).toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 3));
+    const A = words(a), B = words(b);
+    if (!A.size || !B.size) return 0;
+    let both = 0;
+    for (const w of A) if (B.has(w)) both++;
+    return both / (A.size + B.size - both);
+  }
+  return {analyse, withLogo, override, similar, clean, validException};
+})();
+/* RULES END */
+</script>
+
+<!-- ================= App: capture, lookup, OCR, screens ================= -->
+<script>
+(() => {
+'use strict';
+const byId = id => document.getElementById(id);
+const reduceQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let mode = 'barcode';
+let operation = 0;
+let ocrLibrary;
+let photoUrl = '';
+let last = null;          // result on screen
+let base = null;          // rules result before any product correction
+let ctx = null;           // {barcode, name, text, source} of the scan on screen
+let lastFoundHeading = 'What we read';
+let lastExtraNotes = [];
+
+/* ---------- helpers ---------- */
+const safe = fn => (...a) => { try { return fn(...a); } catch (e) { console.warn('[ui]', e); } };
+const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+const today = iso => String(iso || '').slice(0, 10);
+function showScreen(name) {
+  byId('home').hidden = name !== 'home';
+  byId('result').hidden = name !== 'result';
+  safe(restart)(byId(name), 'screen-in');
+  window.scrollTo(0, 0);
+}
+function setPhoto(file) {
+  if (photoUrl) URL.revokeObjectURL(photoUrl);
+  photoUrl = file ? URL.createObjectURL(file) : '';
+  const img = byId('photo');
+  img.hidden = !file;
+  byId('card').hidden = !!file;
+  if (file) img.src = photoUrl; else img.removeAttribute('src');
+}
+function drawCard(kind, text) {
+  const c = byId('card'), x = c.getContext('2d'), W = c.width, H = c.height;
+  const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#c9b99a'); g.addColorStop(1, '#8d7c62');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.save(); x.translate(W / 2, H / 2); x.rotate(-0.03);
+  const pw = 660, ph = 820;
+  x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 40; x.shadowOffsetY = 18;
+  x.fillStyle = '#fbf7ec'; x.fillRect(-pw / 2, -ph / 2, pw, ph); x.shadowColor = 'transparent';
+  x.fillStyle = '#1b1b1b';
+  if (kind === 'barcode') {
+    let bx = -230; const widths = [6, 3, 9, 3, 4, 12, 3, 6, 3, 9, 4, 3, 12, 6, 3, 4, 9, 3, 6, 12, 3, 4, 6, 9, 3];
+    for (const w of widths) { x.fillRect(bx, -170, w, 300); bx += w + 6 + (w % 5); }
+    x.font = '600 44px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText(text, 0, 200);
+  } else {
+    const titled = /^(?:ingredients?|bahan|komposisi)\b/i.test(text);
+    if (!titled) { x.font = '900 52px Arial,sans-serif'; x.fillText('INGREDIENTS', -pw / 2 + 48, -ph / 2 + 100); }
+    x.font = '500 40px Arial,sans-serif';
+    let line = '', y = -ph / 2 + (titled ? 110 : 176), full = false;
+    for (const w of text.split(' ')) {
+      const test = line ? line + ' ' + w : w;
+      if (x.measureText(test).width > pw - 96 && line) {
+        x.fillText(line, -pw / 2 + 48, y); line = w; y += 54;
+        if (y > ph / 2 - 40) { full = true; break; }
+      } else line = test;
+    }
+    if (!full) x.fillText(line, -pw / 2 + 48, y);
+  }
+  x.restore();
+  const v = x.createRadialGradient(W / 2, H * .45, H * .2, W / 2, H / 2, H * .75);
+  v.addColorStop(0, 'rgba(255,250,235,.1)'); v.addColorStop(1, 'rgba(0,0,0,.4)'); x.fillStyle = v; x.fillRect(0, 0, W, H);
+}
+
+/* ================= Corrections: memory on the phone + sync to GitHub ================= */
+const Store = (() => {
+  const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+  const write = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  return {
+    all: () => read('hs-corrections', []), save: v => write('hs-corrections', v),
+    pending: () => read('hs-pending', []), setPending: v => write('hs-pending', v),
+    gh: () => read('hs-github', null), setGh: v => write('hs-github', v)
+  };
+})();
+const mergeCorrections = (...lists) => {
+  const m = new Map();
+  for (const list of lists) for (const c of list || []) if (c && c.id) m.set(c.id, Object.assign({}, m.get(c.id) || {}, c));
+  return [...m.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+};
+const phraseExceptions = () => Store.all().filter(c => c.kind === 'phrase' && Rules.validException(c.phrase)).map(c => c.phrase);
+function productCorrection(c) {
+  if (!c) return null;
+  const matches = Store.all().filter(x => (x.kind === 'logo' || x.kind === 'verdict') && (
+    (x.barcode && c.barcode && x.barcode === c.barcode) ||
+    (!x.barcode && !c.barcode && x.text && c.text && Rules.similar(x.text, c.text) >= 0.85)));
+  return matches.length ? matches[matches.length - 1] : null;
+}
+function applyCorrection(r, c) {
+  if (!c) return r;
+  if (c.kind === 'verdict') return Rules.override(r, c.tone, c.reason, c.date);
+  const out = Rules.withLogo(r);
+  return Object.assign({}, out, {notes: ['Halal logo recorded by you on ' + today(c.date) + '.', ...(out.notes || r.notes || [])]});
+}
+
+/* ---- GitHub contents API ---- */
+const b64enc = s => { const bytes = new TextEncoder().encode(s); let bin = ''; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s/g, '')), ch => ch.charCodeAt(0)));
+function ghFetch(gh, path, init) {
+  return fetch('https://api.github.com/repos/' + encodeURIComponent(gh.owner) + '/' + encodeURIComponent(gh.repo) + path, Object.assign({
+    signal: AbortSignal.timeout(15000)
+  }, init, {headers: Object.assign({'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + gh.token}, (init && init.headers) || {})}));
+}
+async function ghGet(gh, file) {
+  const res = await ghFetch(gh, '/contents/' + encodeURIComponent(file) + '?ref=' + encodeURIComponent(gh.branch || 'main'), {cache: 'no-store'});
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('GitHub said ' + res.status + ' reading ' + file);
+  const j = await res.json();
+  return {sha: j.sha, text: b64dec(j.content || '')};
+}
+async function ghPut(gh, file, text, sha, message) {
+  const body = {message, content: b64enc(text), branch: gh.branch || 'main'};
+  if (sha) body.sha = sha;
+  const res = await ghFetch(gh, '/contents/' + encodeURIComponent(file), {method: 'PUT', body: JSON.stringify(body), headers: {'Content-Type': 'application/json'}});
+  if (!res.ok) throw new Error('GitHub said ' + res.status + ' saving ' + file);
+}
+const MD_HEADER = '# Halal Scanner — corrections log\n\n## Log\n\n| # | Date | Product / barcode | App said | Correct answer | Why (user\'s words) | Status | Rule / test change |\n|---|---|---|---|---|---|---|---|\n';
+const cell = s => String(s == null || s === '' ? '—' : s).replace(/\|/g, '\\|').replace(/[\r\n]+/g, ' ').slice(0, 300);
+function correctAnswer(c) {
+  if (c.kind === 'logo') return 'Pack has a halal logo';
+  if (c.kind === 'phrase') return '“' + c.phrase + '” is harmless here';
+  return {good: 'Safe', doubt: 'Proceed with caution', bad: 'Not safe'}[c.tone] || c.tone;
+}
+const mdRow = (n, c) => '| ' + n + ' | ' + today(c.date) + ' | ' + cell((c.product || '') + (c.barcode ? ' (' + c.barcode + ')' : '')) + ' | ' + cell(c.appSaid) +
+  ' | ' + cell(correctAnswer(c)) + ' | ' + cell(c.reason || (c.text ? 'Label: ' + c.text.slice(0, 160) : '')) + ' | open | — <!-- id:' + c.id + ' --> |';
+
+let syncing = null;
+let syncError = '';
+function sync() {
+  if (syncing) return syncing;
+  syncing = (async () => {
+    const gh = Store.gh();
+    if (!gh || !navigator.onLine) return;
+    syncError = '';
+    const json = await ghGet(gh, 'corrections.json');
+    let remote = [];
+    try { remote = json ? (JSON.parse(json.text).corrections || []) : []; } catch { remote = []; }
+    const merged = mergeCorrections(remote, Store.all());
+    Store.save(merged);
+    const pend = Store.pending();
+    if (!pend.length) return;
+    await ghPut(gh, 'corrections.json', JSON.stringify({version: 1, corrections: merged}, null, 2) + '\n', json && json.sha,
+      'Add ' + pend.length + ' correction' + (pend.length > 1 ? 's' : '') + ' from the app');
+    const md = await ghGet(gh, 'CORRECTIONS.md');
+    let text = md ? md.text : MD_HEADER;
+    const fresh = pend.map(id => merged.find(c => c.id === id)).filter(c => c && !text.includes('id:' + c.id));
+    if (fresh.length) {
+      let n = (text.match(/^\|\s*\d+\s*\|/gm) || []).length;
+      text = text.replace(/\s*$/, '\n') + fresh.map(c => mdRow(++n, c)).join('\n') + '\n';
+      await ghPut(gh, 'CORRECTIONS.md', text, md && md.sha, 'Log ' + fresh.length + ' correction' + (fresh.length > 1 ? 's' : '') + ' from the app');
+    }
+    Store.setPending(Store.pending().filter(id => !pend.includes(id)));
+  })().catch(e => { syncError = e && e.message ? e.message : 'Sync failed'; })
+    .finally(() => { syncing = null; safe(updateSyncStatus)(); });
+  return syncing;
+}
+async function pullPublic() {
+  // Without a GitHub key, still read the published corrections next to the page (read-only).
+  try {
+    const res = await fetch('corrections.json', {cache: 'no-store', signal: AbortSignal.timeout(8000)});
+    if (!res.ok) return;
+    const j = await res.json();
+    Store.save(mergeCorrections(j.corrections || [], Store.all()));
+  } catch {}
+}
+function addCorrection(c) {
+  c.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  c.date = new Date().toISOString();
+  c.status = 'open';
+  Store.save(mergeCorrections(Store.all(), [c]));
+  Store.setPending([...Store.pending(), c.id]);
+  updateSyncStatus();
+  void sync();
+  return c;
+}
+function updateSyncStatus() {
+  const all = Store.all().length, pend = Store.pending().length, gh = Store.gh();
+  let s;
+  if (!gh) s = all ? all + ' correction' + (all > 1 ? 's' : '') + ' saved on this phone. Connect GitHub to log them in CORRECTIONS.md.' : 'Not connected. Corrections stay on this phone until you connect GitHub.';
+  else if (syncError) s = 'Couldn’t upload: ' + syncError + '. ' + pend + ' waiting; it will retry.';
+  else if (!navigator.onLine && pend) s = 'Offline. ' + pend + ' correction' + (pend > 1 ? 's' : '') + ' will upload when you’re back online.';
+  else if (pend) s = 'Uploading ' + pend + ' correction' + (pend > 1 ? 's' : '') + '…';
+  else s = 'Connected to ' + gh.owner + '/' + gh.repo + '. ' + all + ' correction' + (all === 1 ? '' : 's') + ', all logged in CORRECTIONS.md.';
+  byId('sync-status').textContent = s;
+  byId('sync-state').textContent = gh ? (pend ? ' · ' + pend + ' waiting' : ' · connected') : ' · not connected';
+  byId('gh-off').hidden = !gh;
+  byId('sync-now').hidden = !gh;
+}
+
+/* ================= Result rendering ================= */
+const ICON = {
+  bad: '<svg class="ico" viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"><circle cx="27" cy="27" r="23" stroke-width="4"/><path class="draw" d="M18 18l18 18"/><path class="draw d2" d="M36 18 18 36"/></svg>',
+  doubt: '<svg class="ico pop" viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M27 4 51 47H3Z"/><path d="M21 22a6 6 0 1 1 8.5 5.4c-1.6.8-2.5 2-2.5 3.8v1.3"/><circle cx="27" cy="39.5" r="1.4" fill="currentColor"/></svg>',
+  good: '<svg class="ico" viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="27" cy="27" r="23" stroke-width="4"/><path class="draw" d="m15 28 8 8 16-17"/></svg>'
+};
+const TONE_COLOR = {bad: 'var(--red)', doubt: 'var(--amber)', good: 'var(--ok)'};
+function clearStamp() {
+  const st = byId('stamp');
+  st.className = 'stamp'; st.replaceChildren();
+  byId('ring').className = 'inkring';
+  byId('shot').classList.remove('stamped', 'press', 'reading');
+}
+function stampIt(r) {
+  const st = byId('stamp'), ring = byId('ring'), shot = byId('shot');
+  clearStamp();
+  st.classList.add(r.tone);
+  st.innerHTML = ICON[r.tone];
+  const big = document.createElement('span'); big.className = 'big'; big.textContent = r.stampBig; st.append(big);
+  if (r.stampSmall) { const sm = document.createElement('span'); sm.className = 'small'; sm.textContent = r.stampSmall; st.append(sm); }
+  ring.style.color = TONE_COLOR[r.tone];
+  void st.offsetWidth;
+  st.classList.add('go'); ring.classList.add('go'); shot.classList.add('stamped');
+  if (!reduceQuery.matches) setTimeout(() => shot.classList.add('press'), 200);
+}
+function setVerdict(tone, title, reason, next) {
+  byId('verdict').className = 'verdict' + (tone ? ' ' + tone : '');
+  byId('vt').textContent = title;
+  byId('vr').textContent = reason || '';
+  const vn = byId('vn');
+  vn.replaceChildren();
+  if (next) { const b = document.createElement('b'); b.textContent = 'Next: '; vn.append(b, document.createTextNode(next)); }
+  byId('v-actions').replaceChildren();
+  byId('logo').hidden = true;
+  byId('logo-no-msg').hidden = true;
+  byId('wrongbox').hidden = true;
+  closeWrong();
+}
+function addActions(list) {
+  const box = byId('v-actions');
+  for (const [label, run, primary] of list) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label;
+    b.addEventListener('click', run);
+    box.append(b);
+  }
+}
+function showFound(heading, r, extraNotes) {
+  byId('found').hidden = !r.text;
+  byId('found-h').textContent = heading;
+  const p = byId('found-text');
+  p.replaceChildren();
+  let at = 0;
+  for (const h of r.hits || []) {
+    if (h.start < at) continue;
+    p.append(document.createTextNode(r.text.slice(at, h.start)));
+    const m = document.createElement('mark'); m.className = h.tone; m.textContent = r.text.slice(h.start, h.end);
+    p.append(m); at = h.end;
+  }
+  p.append(document.createTextNode((r.text || '').slice(at)));
+  const ul = byId('notes'); ul.replaceChildren();
+  for (const n of [...extraNotes, ...(r.notes || [])]) { const li = document.createElement('li'); li.textContent = n; ul.append(li); }
+  byId('fix').open = false;
+  byId('fix-text').value = r.text || '';
+}
+function evaluate() {
+  base = ctx.noList ? ctx.noList : Rules.analyse(ctx.text, ctx.source, {exceptions: phraseExceptions()});
+  return applyCorrection(base, productCorrection(ctx));
+}
+function present(r) {
+  last = r;
+  byId('shot').classList.remove('reading');
+  setVerdict(r.tone, r.title, r.reason, r.next);
+  byId('logo').hidden = !r.askLogo;
+  if (r.kind === 'incomplete') addActions(ctx.source === 'typed'
+    ? [['Edit the ingredients', () => { byId('fix').open = true; byId('fix-text').focus(); }, true]]
+    : [[ctx.source === 'off' ? 'Photograph ingredients' : 'Retake ingredients photo', () => pick('ingredients', 'camera'), true], ['Type the ingredients', () => goManual('typed-text')]]);
+  if (r.kind === 'no-list') addActions([['Photograph ingredients', () => pick('ingredients', 'camera'), true], ['Type the ingredients', () => goManual('typed-text')]]);
+  byId('corrected').hidden = r.kind !== 'override' && !(r.notes || []).some(n => /recorded by you/.test(n));
+  byId('wrongbox').hidden = false;
+  showFound(lastFoundHeading, r, lastExtraNotes);
+  safe(stampIt)(r);
+  byId('vt').focus({preventScroll: true});
+}
+function problem(title, reason, actions) {
+  clearStamp();
+  setVerdict('', title, reason, '');
+  addActions(actions);
+  byId('corrected').hidden = true;
+  byId('found').hidden = true;
+  byId('vt').focus({preventScroll: true});
+}
+function startResult(srcLabel, file, card) {
+  const current = ++operation;
+  last = null; base = null; ctx = null;
+  lastExtraNotes = [];
+  setPhoto(file);
+  if (!file && card) safe(drawCard)(card[0], card[1]);
+  byId('src').textContent = srcLabel;
+  clearStamp();
+  byId('found').hidden = true;
+  byId('corrected').hidden = true;
+  showScreen('result');
+  return current;
+}
+function reading(message) {
+  setVerdict('', message, '', '');
+  byId('shot').classList.add('reading');
+  byId('vt').focus({preventScroll: true});
+}
+
+/* ================= "This is wrong?" ================= */
+let verdictChoice = '';
+function closeWrong() {
+  byId('wrong-panel').hidden = true;
+  byId('wrong').setAttribute('aria-expanded', 'false');
+  byId('c-phrase').hidden = true; byId('c-verdict').hidden = true;
+  byId('c-msg').textContent = '';
+}
+byId('wrong').onclick = () => {
+  const open = byId('wrong-panel').hidden;
+  closeWrong();
+  byId('wrong-panel').hidden = !open;
+  byId('wrong').setAttribute('aria-expanded', String(open));
+  if (open) byId('wrong-panel').querySelector('button').focus();
+};
+function sentenceAround(text, start, end) {
+  const before = text.slice(0, start).split(/[\s,;:()]+/).filter(Boolean).pop() || '';
+  const after = text.slice(end).split(/[\s,;:()]+/).filter(Boolean)[0] || '';
+  return [before, text.slice(start, end), after].filter(Boolean).join(' ');
+}
+function confirmSaved(c) {
+  const gh = Store.gh();
+  byId('c-msg').textContent = 'Saved. ' + (gh ? (navigator.onLine ? 'Uploading to CORRECTIONS.md…' : 'It will upload to CORRECTIONS.md when you’re back online.') : 'Kept on this phone. Connect GitHub on the home screen to log it in CORRECTIONS.md.');
+}
+function correctionBase() {
+  return {kind: '', barcode: ctx.barcode || null, product: ctx.name || (ctx.text || '').slice(0, 60), text: (ctx.text || '').slice(0, 600), appSaid: (base || last).title};
+}
+for (const b of document.querySelectorAll('#wrong-panel [data-c]')) {
+  b.onclick = () => {
+    byId('c-phrase').hidden = true; byId('c-verdict').hidden = true; byId('c-msg').textContent = '';
+    const kind = b.dataset.c;
+    if (kind === 'logo') {
+      const c = addCorrection(Object.assign(correctionBase(), {kind: 'logo', reason: 'Pack shows a halal logo.'}));
+      present(evaluate());
+      byId('wrong-panel').hidden = false; confirmSaved(c);
+    } else if (kind === 'phrase') {
+      const words = byId('c-words'); words.replaceChildren();
+      const flagged = (base && base.hits || []).filter(h => h.tone !== 'ok');
+      byId('c-phrase').hidden = false;
+      byId('c-none').hidden = !!flagged.length;
+      byId('c-phrase-form').hidden = !flagged.length;
+      for (const h of flagged) {
+        const w = document.createElement('button');
+        w.type = 'button'; w.className = 'chip ' + h.tone; w.textContent = h.term;
+        w.onclick = () => { byId('c-phrase-text').value = sentenceAround(base.text, h.start, h.end); byId('c-phrase-text').focus(); };
+        words.append(w);
+      }
+      if (flagged[0]) byId('c-phrase-text').value = sentenceAround(base.text, flagged[0].start, flagged[0].end);
+    } else {
+      byId('c-verdict').hidden = false;
+      verdictChoice = '';
+      for (const v of document.querySelectorAll('#c-verdict [data-v]')) v.setAttribute('aria-pressed', 'false');
+    }
+  };
+}
+byId('c-phrase-form').onsubmit = event => {
+  event.preventDefault();
+  const phrase = Rules.clean(byId('c-phrase-text').value);
+  if (!Rules.validException(phrase)) { byId('c-msg').textContent = 'Use at least two words, such as “virgin olive oil”, so a real ingredient isn’t hidden elsewhere.'; byId('c-phrase-text').focus(); return; }
+  const c = addCorrection(Object.assign(correctionBase(), {kind: 'phrase', phrase, reason: byId('c-phrase-why').value.trim()}));
+  present(evaluate());
+  byId('wrong-panel').hidden = false; confirmSaved(c);
+};
+for (const v of document.querySelectorAll('#c-verdict [data-v]')) {
+  v.onclick = () => {
+    verdictChoice = v.dataset.v;
+    for (const o of document.querySelectorAll('#c-verdict [data-v]')) o.setAttribute('aria-pressed', String(o === v));
+  };
+}
+byId('c-verdict-form').onsubmit = event => {
+  event.preventDefault();
+  if (!verdictChoice) { byId('c-msg').textContent = 'Pick the right stamp first.'; return; }
+  const c = addCorrection(Object.assign(correctionBase(), {kind: 'verdict', tone: verdictChoice, reason: byId('c-why').value.trim()}));
+  byId('c-why').value = '';
+  present(evaluate());
+  byId('wrong-panel').hidden = false; confirmSaved(c);
+};
+
+/* ================= Barcode lookup (Open Food Facts) ================= */
+async function lookup(code, current) {
+  reading('Looking up barcode ' + code + '…');
+  const notFound = () => problem('Product not found', 'This barcode isn’t in Open Food Facts. Photograph the ingredients instead.',
+    [['Photograph ingredients', () => pick('ingredients', 'camera'), true], ['Type the ingredients', () => goManual('typed-text')]]);
+  try {
+    const endpoint = 'https://world.openfoodfacts.org/api/v2/product/' + code + '.json?fields=product_name,brands,quantity,ingredients_text,ingredients_text_en';
+    const response = await fetch(endpoint, {signal: AbortSignal.timeout(10000)});
+    if (current !== operation) return;
+    if (response.status === 404) return notFound();
+    if (!response.ok) throw new Error('Lookup unavailable');
+    const {product} = await response.json();
+    if (current !== operation) return;
+    if (!product || !product.product_name) return notFound();
+    const name = [product.brands, product.product_name, product.quantity].filter(Boolean).join(' ');
+    const ingredients = String(product.ingredients_text_en || product.ingredients_text || '').trim();
+    lastFoundHeading = 'Ingredients from Open Food Facts';
+    if (!ingredients) {
+      ctx = {barcode: code, name, text: '', source: 'off', noList: {tone: 'doubt', kind: 'no-list', stampBig: 'Proceed with caution', stampSmall: 'No ingredient list found',
+        title: 'Proceed with caution — no ingredient list found', reason: 'Open Food Facts knows “' + name + '” but has no ingredients for it.',
+        next: 'Photograph the ingredients on the pack.', askLogo: false, text: '', hits: [], notes: []}};
+      present(evaluate());
+      return;
+    }
+    ctx = {barcode: code, name, text: ingredients, source: 'off'};
+    lastExtraNotes = ['Product: ' + name + '. Check these ingredients match your pack and variant.'];
+    present(evaluate());
+  } catch {
+    if (current !== operation) return;
+    problem('Online lookup failed', 'Check your connection and try again, or photograph the ingredients instead.',
+      [['Try again', () => runLookup(code), true], ['Photograph ingredients', () => pick('ingredients', 'camera')]]);
+  }
+}
+function runLookup(code) {
+  const current = startResult('Barcode ' + code, null, ['barcode', code]);
+  void lookup(code, current);
+}
+
+/* ================= OCR (Tesseract.js, runs on the device) ================= */
+function loadOcr() {
+  if (!ocrLibrary) {
+    ocrLibrary = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      const timer = setTimeout(() => { script.remove(); reject(new Error('OCR download timed out')); }, 12000);
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';
+      script.onload = () => { clearTimeout(timer); resolve(window.Tesseract); };
+      script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('OCR download failed')); };
+      document.head.append(script);
+    }).catch(error => { ocrLibrary = null; throw error; });
+  }
+  return ocrLibrary;
+}
+async function readText(file, current) {
+  const ocr = await loadOcr();
+  if (current !== operation) return null;
+  let worker;
+  let expired = false;
+  const closeWorker = async () => {
+    if (!worker) return;
+    const active = worker;
+    worker = undefined;
+    await active.terminate().catch(() => {});
+  };
+  const run = async () => {
+    worker = await ocr.createWorker('eng', 1, {
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0',
+      cacheMethod: 'none'
+    });
+    if (expired || current !== operation) { await closeWorker(); return ''; }
+    const {data} = await worker.recognize(file);
+    return data.text.trim();
+  };
+  let timer;
+  try {
+    return await Promise.race([run(), new Promise((_, reject) => {
+      timer = setTimeout(() => { expired = true; reject(new Error('OCR timed out')); }, 45000);
+    })]);
+  } finally {
+    clearTimeout(timer);
+    await closeWorker();
+  }
+}
+
+/* ================= Photo flow ================= */
+async function readPhoto(file, kind) {
+  const current = startResult(kind === 'barcode' ? 'Your barcode photo' : 'Your ingredient photo', file);
+  reading(kind === 'barcode' ? 'Reading the barcode…' : 'Reading the ingredients… The first time may take a moment.');
+  try {
+    if (kind === 'ingredients') {
+      const extracted = await readText(file, current);
+      if (current !== operation || extracted === null) return;
+      if (!extracted) throw new Error('No text');
+      lastFoundHeading = 'What we read';
+      ctx = {barcode: null, name: '', text: extracted, source: 'photo'};
+      present(evaluate());
+      return;
+    }
+    if (!('BarcodeDetector' in window)) throw new Error('Barcode detector unavailable');
+    const supported = await BarcodeDetector.getSupportedFormats();
+    const formats = ['ean_13', 'ean_8', 'upc_a'].filter(format => supported.includes(format));
+    if (!formats.length) throw new Error('No supported barcode formats');
+    const detector = new BarcodeDetector({formats});
+    const bitmap = await createImageBitmap(file);
+    let matches;
+    try { matches = await detector.detect(bitmap); } finally { bitmap.close(); }
+    if (current !== operation) return;
+    const codes = [...new Set(matches.map(item => item.rawValue))];
+    if (codes.length !== 1) throw new Error('No unique barcode');
+    byId('src').textContent = 'Barcode ' + codes[0];
+    await lookup(codes[0], current);
+  } catch {
+    if (current !== operation) return;
+    if (kind === 'barcode') {
+      problem('Couldn’t read the barcode', 'Make sure the barcode is sharp, well lit and fills most of the photo.',
+        [['Retake barcode photo', () => pick('barcode', 'camera'), true], ['Type the barcode number', () => goManual('barcode')], ['Photograph ingredients instead', () => pick('ingredients', 'camera')]]);
+    } else {
+      problem('Couldn’t read the ingredients', 'Try a sharper photo in good light, with the whole list in view.',
+        [['Retake ingredients photo', () => pick('ingredients', 'camera'), true], ['Type the ingredients', () => goManual('typed-text')]]);
+    }
+  }
+}
+function pick(kind, field) {
+  mode = kind;
+  byId(field).click();
+}
+byId('scan').onclick = () => pick('barcode', 'camera');
+byId('read').onclick = () => pick('ingredients', 'camera');
+byId('choose-barcode').onclick = () => pick('barcode', 'gallery');
+byId('choose-label').onclick = () => pick('ingredients', 'gallery');
+for (const id of ['camera', 'gallery']) {
+  byId(id).onchange = event => {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (file) void readPhoto(file, mode);
+  };
+}
+
+/* ================= Manual entry ================= */
+function setManual(open) {
+  byId('manual').hidden = !open;
+  byId('typeit').setAttribute('aria-expanded', String(open));
+}
+function goManual(fieldId) {
+  goHome(false);
+  setManual(true);
+  const f = byId(fieldId);
+  f.scrollIntoView({block: 'center', behavior: reduceQuery.matches ? 'auto' : 'smooth'});
+  f.focus({preventScroll: true});
+}
+byId('typeit').onclick = () => setManual(byId('manual').hidden);
+const showErr = (id, msg) => { const e = byId(id); e.textContent = msg; e.hidden = !msg; };
+byId('lookup').onsubmit = event => {
+  event.preventDefault();
+  const code = byId('barcode').value.trim().replace(/[ -]/g, '');
+  if (!/^(?:\d{8}|\d{12,14})$/.test(code)) {
+    showErr('barcode-err', 'Enter the 8, 12, 13 or 14 digits under the barcode.');
+    byId('barcode').focus();
+    return;
+  }
+  showErr('barcode-err', '');
+  runLookup(code);
+};
+byId('typed').onsubmit = event => {
+  event.preventDefault();
+  const value = byId('typed-text').value.trim();
+  if (!value) { showErr('typed-err', 'Type or paste the ingredient list first.'); byId('typed-text').focus(); return; }
+  showErr('typed-err', '');
+  startResult('Typed ingredients', null, ['text', Rules.clean(value)]);
+  lastFoundHeading = 'What you typed';
+  ctx = {barcode: null, name: '', text: value, source: 'typed'};
+  present(evaluate());
+};
+byId('barcode').oninput = () => showErr('barcode-err', '');
+byId('typed-text').oninput = () => showErr('typed-err', '');
+
+/* ================= Result actions ================= */
+byId('refix').onsubmit = event => {
+  event.preventDefault();
+  const value = byId('fix-text').value.trim();
+  if (!value || !ctx) { byId('fix-text').focus(); return; }
+  operation++;
+  ctx = Object.assign({}, ctx, {text: value, source: ctx.source === 'off' ? 'off' : 'typed', noList: null});
+  present(evaluate());
+};
+byId('logo-yes').onclick = () => {
+  if (!last || !ctx) return;
+  const c = addCorrection(Object.assign(correctionBase(), {kind: 'logo', reason: 'Pack shows a halal logo.'}));
+  present(evaluate());
+  byId('wrong-panel').hidden = false; confirmSaved(c);
+};
+byId('logo-no').onclick = () => { byId('logo-no-msg').hidden = false; };
+function goHome(focusScan = true) {
+  operation++;
+  last = null; base = null; ctx = null;
+  setPhoto(null);
+  clearStamp();
+  showScreen('home');
+  if (focusScan) byId('scan').focus();
+}
+byId('back').onclick = () => goHome();
+byId('again').onclick = () => goHome();
+
+/* ================= GitHub connection (home screen) ================= */
+safe(() => {
+  const gh = Store.gh();
+  const host = location.hostname.match(/^([a-z0-9-]+)\.github\.io$/i);
+  byId('gh-owner').value = gh ? gh.owner : (host ? host[1] : '');
+  byId('gh-repo').value = gh ? gh.repo : (host ? (location.pathname.split('/')[1] || '') : '');
+})();
+byId('gh-form').onsubmit = async event => {
+  event.preventDefault();
+  const owner = byId('gh-owner').value.trim(), repo = byId('gh-repo').value.trim(), token = byId('gh-token').value.trim();
+  if (!owner || !repo || !token) { byId('sync-status').textContent = 'Fill in the account name, repository and key.'; return; }
+  byId('sync-status').textContent = 'Checking…';
+  try {
+    const res = await ghFetch({owner, repo, token}, '', {cache: 'no-store'});
+    if (!res.ok) throw new Error(res.status === 401 ? 'the key wasn’t accepted' : res.status === 404 ? 'repository not found for this key' : 'GitHub said ' + res.status);
+    const j = await res.json();
+    if (j.permissions && !j.permissions.push) throw new Error('this key can’t write to the repository');
+    Store.setGh({owner, repo, token, branch: j.default_branch || 'main'});
+    byId('gh-token').value = '';
+    syncError = '';
+    updateSyncStatus();
+    await sync();
+  } catch (e) {
+    byId('sync-status').textContent = 'Not connected: ' + (e.message || 'check your connection') + '.';
+  }
+};
+byId('sync-now').onclick = () => { syncError = ''; updateSyncStatus(); void sync(); };
+byId('gh-off').onclick = () => { Store.setGh(null); syncError = ''; updateSyncStatus(); };
+
+/* ================= Online / offline ================= */
+function onlineState() {
+  byId('offline').hidden = navigator.onLine;
+  safe(updateSyncStatus)();
+}
+window.addEventListener('online', () => { onlineState(); void (Store.gh() ? sync() : pullPublic()); });
+window.addEventListener('offline', onlineState);
+onlineState();
+if (navigator.onLine) void (Store.gh() ? sync() : pullPublic().then(() => safe(updateSyncStatus)()));
+
+/* ================= Background motion (decorative only) ================= */
+safe(() => {
+  const motion = byId('motion');
+  const setPaused = paused => {
+    document.body.classList.toggle('paused', paused);
+    motion.setAttribute('aria-pressed', String(paused));
+    byId('motion-state').textContent = paused ? ' paused, resume background animation' : ' on, pause background animation';
+    try { sessionStorage.setItem('hs-motion-paused', paused ? '1' : '0'); } catch {}
+  };
+  let stored = null;
+  try { stored = sessionStorage.getItem('hs-motion-paused'); } catch {}
+  setPaused(stored === '1');
+  motion.onclick = () => setPaused(!document.body.classList.contains('paused'));
+  document.addEventListener('visibilitychange', () => document.body.classList.toggle('hidden-tab', document.hidden));
+})();
+})();
+</script>
+</body>
+</html>

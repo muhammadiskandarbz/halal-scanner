@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halal Scanner</title>
+<style>
+:root{color-scheme:light;--ink:#173b30;--paper:#f6f3e9;--muted:#465f51;--line:#d4dcd2;--green:#194b3a}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:38rem;margin:auto;padding:2rem 1rem 3rem}h1,h2,p{margin:0}h1{font-size:clamp(2.5rem,10vw,4rem);letter-spacing:-.065em;line-height:1.03}
+h2{font-size:1.24rem}header p{margin:.65rem 0 1.4rem;color:var(--muted)}
+section,details{margin-top:1rem;padding:1rem;border:1px solid var(--line);border-radius:1rem;background:#fffef9}
+button,input,textarea,select{font:inherit}button,.action{display:inline-flex;align-items:center;justify-content:center;min-height:46px;border:1px solid var(--line);padding:.55rem .8rem;border-radius:.6rem;color:var(--ink);background:#f0f5ed;font-weight:650;cursor:pointer;text-decoration:none}
+.primary{background:var(--green);color:white;border-color:var(--green)}button:disabled{opacity:.55;cursor:wait}
+:focus-visible{outline:3px solid #007157;outline-offset:3px}
+.actions{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.65rem}
+.actions button{flex:1 1 auto}label{display:block;margin-top:.8rem;font-weight:650}
+input:not([type=file]),textarea,select{display:block;width:100%;margin-top:.35rem;padding:.6rem;border-radius:.55rem;border:1px solid #85978b;color:var(--ink);background:#fff}
+textarea{resize:vertical;min-height:7rem}small,.hint{display:block;color:var(--muted);margin-top:.5rem;font-size:.9rem}
+#result{border-left:.35rem solid #97620f}#result[data-tone=bad]{border-left-color:#9c3328}#result[data-tone=good]{border-left-color:#297255}
+#reason{margin-top:.35rem}summary{font-weight:700;cursor:pointer;min-height:28px}a{color:#145b47}footer{margin-top:1rem}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Halal Scanner</h1><p>Check packaged food and drinks in Singapore.</p></header>
+<section aria-labelledby="scan-title">
+<h2 id="scan-title">Scan the packaging</h2>
+<div class="actions">
+<button class="primary" id="scan">Photograph barcode</button>
+<button id="read">Photograph ingredients</button>
+<button id="choose-barcode">Choose barcode photo</button>
+<button id="choose-label">Choose ingredient photo</button>
+</div>
+<input hidden id="camera" type="file" accept="image/*" capture="environment">
+<input hidden id="gallery" type="file" accept="image/*">
+<p id="status" class="hint" role="status">You can also enter the barcode or ingredients below.</p>
+</section>
+<section id="result" aria-labelledby="verdict" aria-live="polite">
+<h2 id="verdict">Proceed with caution</h2>
+<p id="reason"></p>
+<p id="next" class="hint"></p>
+</section>
+<section aria-labelledby="product-title">
+<h2 id="product-title">Product and certification</h2>
+<form id="lookup">
+<label for="barcode">Barcode number</label>
+<input id="barcode" inputmode="numeric" autocomplete="off" maxlength="18">
+<div class="actions"><button>Look up barcode</button></div>
+</form>
+<label for="product">Product name and variant</label>
+<input id="product" autocomplete="off">
+<p class="hint">Search MUIS first. For imports, check the issuer and MUIS recognition. Match the official record to the exact pack.</p>
+<div class="actions">
+<a class="action" target="_blank" rel="noopener" href="https://halal.muis.gov.sg/halal/products">MUIS</a>
+<a class="action" target="_blank" rel="noopener" href="https://www.halal.gov.my/?lang=en">JAKIM</a>
+<a class="action" target="_blank" rel="noopener" href="https://bpjph.halal.go.id/cari/sertifikat">BPJPH</a>
+<button id="copy">Copy product name</button>
+</div>
+<small><a target="_blank" rel="noopener" href="https://www.muis.gov.sg/halal/fhcb/">MUIS-recognised foreign certifiers</a></small>
+<details>
+<summary>Record an official certificate you checked</summary>
+<form id="certificate">
+<label for="issuer">Issuer</label>
+<select id="issuer"><option>MUIS</option><option>JAKIM</option><option>BPJPH</option></select>
+<label for="reference">Official record reference</label>
+<input id="reference" required maxlength="140">
+<p class="hint">Confirm the record is current and covers this exact product and variant. For overseas issuers, confirm applicable MUIS recognition.</p>
+<div class="actions"><button>Confirm record</button><button type="button" id="remove">Remove record</button></div>
+</form>
+</details>
+</section>
+<section aria-labelledby="ingredients-title">
+<h2 id="ingredients-title">Ingredients on the pack</h2>
+<form id="review">
+<label for="ingredients">Review or paste the complete list</label>
+<textarea id="ingredients" required spellcheck="false"></textarea>
+<div class="actions"><button class="primary">Confirm list and check</button></div>
+</form>
+</section>
+<footer><button id="reset">Start a new check</button>
+<small>Photos are processed on the device. Ingredient photo reading may download OCR files on first use. Online product lookup sends the barcode to Open Food Facts.</small>
+<small><a href="https://www.muis.gov.sg/halal/for-consumers/" target="_blank" rel="noopener">MUIS ingredient guidance</a> · <a href="https://www.muis.gov.sg/resources/khutbah-and-religious-advice/fatwa/ethanol--english/" target="_blank" rel="noopener">MUIS ethanol guidance</a></small></footer>
+</main>
+<script>
+'use strict';
+const byId = id => document.getElementById(id);
+const text = id => byId(id).value.trim();
+const status = message => { byId('status').textContent = message; };
+let complete = false;
+let certificate = null;
+let mode = 'barcode';
+let operation = 0;
+let ocrLibrary;
+const exclusions = /\b(?:alcohol|pork|lard)[- ]free\b|\bnon[- ]alcoholic\b|\b(?:wine|beer) vinegar\b|\bsugar alcohols?\b|\broot beer\b/gi;
+const prohibited = /\b(?:pork(?:[- ]derived)?(?: gelatine?)?|lard|bacon|daging babi|lemak babi|minyak babi|gelatin babi|wine|beer|rum|vodka|whisk(?:e)?y|brandy|sake)\b(?![- ]flavou?r(?:ings?)?\b)/i;
+const uncertain = /\b(?:gelatine?|e441|e471|e472[a-f]?|ethanol|alcohol|alkohol|etanol|ham|emulsifiers?|enzymes?|animal fats?|shortening|rennet|lecithin|flavou?r(?:ings?)?|mirin|chicken|beef|poultry|daging ayam|daging sapi|daging lembu)\b/i;
+function assess(ingredients, confirmed, record) {
+  const label = confirmed ? ingredients.replace(exclusions, ' ') : '';
+  const forbidden = label.match(prohibited)?.[0];
+  const unclear = label.match(uncertain)?.[0];
+  if (forbidden && record) return ['Proceed with caution', 'The label lists “' + forbidden + '” and conflicts with the recorded certificate.', 'Recheck the exact pack and the official record.', 'caution'];
+  if (forbidden) return ['Not halal', 'The ingredient list includes “' + forbidden + '”.', 'Choose another product.', 'bad'];
+  if (record) return ['Halal certified', record, 'Check the original record in the official directory above.', 'good'];
+  if (!confirmed) return ['Proceed with caution', 'Certification is unverified and the ingredient list needs review.', 'Photograph or paste the complete ingredient list.', 'caution'];
+  if (unclear) return ['Proceed with caution', 'The label leaves the status of “' + unclear + '” unclear.', 'Check the official directory or ask the manufacturer.', 'caution'];
+  return ['Proceed with caution', 'No flagged ingredients found in the reviewed list. Certification is unverified.', 'Check the official directory for certification.', 'caution'];
+}
+function render() {
+  const [verdict, reason, next, tone] = assess(text('ingredients'), complete, certificate);
+  byId('verdict').textContent = verdict;
+  byId('reason').textContent = reason;
+  byId('next').textContent = next;
+  byId('result').dataset.tone = tone;
+}
+function clearEvidence() {
+  complete = false;
+  certificate = null;
+  byId('ingredients').value = '';
+  byId('reference').value = '';
+  render();
+}
+async function lookup() {
+  const code = text('barcode').replace(/[ -]/g, '');
+  if (!/^(?:\d{8}|\d{12,14})$/.test(code)) {
+    status('Enter an 8-, 12-, 13- or 14-digit retail barcode.');
+    byId('barcode').focus();
+    return;
+  }
+  const current = ++operation;
+  byId('product').value = '';
+  clearEvidence();
+  status('Looking up barcode ' + code + '…');
+  try {
+    const endpoint = 'https://world.openfoodfacts.org/api/v2/product/' + code + '.json?fields=product_name,brands,quantity';
+    const response = await fetch(endpoint, {signal: AbortSignal.timeout(10000)});
+    if (current !== operation) return;
+    if (response.status === 404) {
+      status('Barcode wasn’t found. Enter the product name printed on the pack.');
+      return;
+    }
+    if (!response.ok) throw new Error('Lookup unavailable');
+    const {product} = await response.json();
+    if (current !== operation) return;
+    if (!product?.product_name) {
+      status('Barcode wasn’t found. Enter the product name printed on the pack.');
+      return;
+    }
+    byId('product').value = [product.brands, product.product_name, product.quantity].filter(Boolean).join(' ');
+    status('Product candidate found. Confirm the name and variant on the pack, then check the official directory.');
+    byId('product').focus();
+  } catch {
+    if (current === operation) status('Online lookup failed. Enter the product name from the pack or retry.');
+  }
+}
+function loadOcr() {
+  if (!ocrLibrary) {
+    ocrLibrary = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      const timer = setTimeout(() => { script.remove(); reject(new Error('OCR download timed out')); }, 12000);
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';
+      script.onload = () => { clearTimeout(timer); resolve(window.Tesseract); };
+      script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('OCR download failed')); };
+      document.head.append(script);
+    }).catch(error => { ocrLibrary = null; throw error; });
+  }
+  return ocrLibrary;
+}
+async function readIngredients(file, current) {
+  const ocr = await loadOcr();
+  if (current !== operation) return;
+  let worker;
+  let expired = false;
+  const closeWorker = async () => {
+    if (!worker) return;
+    const active = worker;
+    worker = undefined;
+    await active.terminate().catch(() => {});
+  };
+  const run = async () => {
+    worker = await ocr.createWorker('eng', 1, {
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0',
+      cacheMethod: 'none'
+    });
+    if (expired || current !== operation) {
+      await closeWorker();
+      return '';
+    }
+    const {data} = await worker.recognize(file);
+    return data.text.trim();
+  };
+  let timer;
+  try {
+    const extracted = await Promise.race([run(), new Promise((_, reject) => {
+      timer = setTimeout(() => { expired = true; reject(new Error('OCR timed out')); }, 45000);
+    })]);
+    if (current !== operation) return;
+    if (!extracted) throw new Error('No text');
+    complete = false;
+    byId('ingredients').value = extracted;
+    render();
+    status('Text extracted. Remove anything outside the ingredient list and correct any errors before confirming.');
+    byId('ingredients').focus();
+  } finally {
+    clearTimeout(timer);
+    await closeWorker();
+  }
+}
+async function readPhoto(file, kind) {
+  const current = ++operation;
+  status(kind === 'barcode' ? 'Reading barcode…' : 'Reading ingredient photo. First use may take a moment…');
+  try {
+    if (kind === 'ingredients') {
+      await readIngredients(file, current);
+      return;
+    }
+    if (!('BarcodeDetector' in window)) throw new Error('Barcode detector unavailable');
+    const supported = await BarcodeDetector.getSupportedFormats();
+    const formats = ['ean_13', 'ean_8', 'upc_a'].filter(format => supported.includes(format));
+    if (!formats.length) throw new Error('No supported barcode formats');
+    const detector = new BarcodeDetector({formats});
+    const bitmap = await createImageBitmap(file);
+    let matches;
+    try { matches = await detector.detect(bitmap); } finally { bitmap.close(); }
+    if (current !== operation) return;
+    const codes = [...new Set(matches.map(item => item.rawValue))];
+    if (codes.length !== 1) throw new Error('No unique barcode');
+    byId('barcode').value = codes[0];
+    await lookup();
+  } catch {
+    if (current !== operation) return;
+    status(kind === 'barcode'
+      ? 'Couldn’t decode the barcode in this tab. Type the digits under the barcode.'
+      : 'Couldn’t read the ingredients in this tab. Try a clear photo or use Google Lens to copy and paste the text.');
+    byId(kind === 'barcode' ? 'barcode' : 'ingredients').focus();
+  }
+}
+function pick(kind, field) {
+  mode = kind;
+  byId(field).click();
+}
+byId('scan').onclick = () => pick('barcode', 'camera');
+byId('read').onclick = () => pick('ingredients', 'camera');
+byId('choose-barcode').onclick = () => pick('barcode', 'gallery');
+byId('choose-label').onclick = () => pick('ingredients', 'gallery');
+for (const id of ['camera', 'gallery']) {
+  byId(id).onchange = event => {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (file) void readPhoto(file, mode);
+  };
+}
+byId('lookup').onsubmit = event => { event.preventDefault(); void lookup(); };
+byId('barcode').oninput = () => {
+  operation++;
+  byId('product').value = '';
+  clearEvidence();
+};
+byId('product').oninput = () => {
+  operation++;
+  certificate = null;
+  byId('reference').value = '';
+  render();
+};
+byId('ingredients').oninput = () => { operation++; complete = false; render(); };
+byId('review').onsubmit = event => {
+  event.preventDefault();
+  if (!text('ingredients')) return;
+  complete = true;
+  render();
+  byId('result').scrollIntoView({block: 'nearest'});
+};
+byId('certificate').onsubmit = event => {
+  event.preventDefault();
+  if (!text('product')) { status('Enter the exact product name and variant first.'); byId('product').focus(); return; }
+  if (!text('reference')) return;
+  certificate = 'Manually checked · ' + text('issuer') + ' · ' + text('reference') + ' · ' + new Date().toLocaleDateString('en-SG');
+  render();
+  byId('result').scrollIntoView({block: 'nearest'});
+};
+byId('remove').onclick = () => { certificate = null; byId('reference').value = ''; render(); };
+byId('copy').onclick = async () => {
+  if (!text('product')) { byId('product').focus(); return; }
+  try {
+    await navigator.clipboard.writeText(text('product'));
+    status('Product name copied for the official search.');
+  } catch {
+    byId('product').focus();
+    byId('product').select();
+    status('Product name selected. Use Chrome’s Copy action.');
+  }
+};
+byId('reset').onclick = () => {
+  operation++;
+  byId('barcode').value = '';
+  byId('product').value = '';
+  clearEvidence();
+  status('Ready for a new check.');
+  byId('scan').focus();
+};
+render();
+</script>
+</body>
+</html>
