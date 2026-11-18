@@ -127,9 +127,13 @@ _Last updated: 18 Nov 2026, by Claude Code._
 - **Checked:**
   - rules test 75/75;
   - mocked browser run of every correction and sync flow above, with a mocked GitHub API.
-- **Not done yet:**
-  - the user still has to create the GitHub repository, upload the files, turn on Pages and create the access key;
-  - no real GitHub upload has happened.
-- **Not yet tested:** real phone camera, barcode decoding of real photos, OCR of real packs, the live GitHub Pages site and real API writes.
+- **Live (18 Nov 2026):**
+  - Repository: `https://github.com/muhammadiskandarbz/halal-scanner` (public, branch `main`).
+  - Site: `https://muhammadiskandarbz.github.io/halal-scanner/`, served by Pages from `main` / root.
+  - Files were uploaded through the GitHub web page by Claude Code at the user's request; `.nojekyll` was skipped because the page rejects empty files.
+  - The live app loads with no console errors and `corrections.json` is served.
+- **Not done yet:** the user still has to create the fine-grained access key and connect it on the phone. No real correction upload has happened.
+- **Keeping GitHub in step:** the repository is now the live copy. After any local change, upload the changed files to the same paths, and pull `corrections.json` / `CORRECTIONS.md` from GitHub first, because the app writes to them there.
+- **Not yet tested:** real phone camera, barcode decoding of real photos, OCR of real packs and real API writes.
 - **`CORRECTIONS.md` #1** (halal-logo pack stamped red, 18 Nov) is open, waiting for the product name or photo.
 - Git isn't configured on the user's Mac (no name or email), so files go to GitHub through the web upload page for now.
